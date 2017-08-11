@@ -6,6 +6,8 @@ import java.util.List;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.security.acls.model.Acl;
+import org.springframework.security.core.context.SecurityContextHolder;
+import sun.plugin.liveconnect.SecurityContextHelper;
 
 /**
  * Represents an access control list configuration for a domain object specified by its unique identifier. An instance
@@ -52,6 +54,8 @@ public class MongoAcl
         this.id = id;
         this.instanceId = instanceId;
         this.className = className;
+        // assign the user who created the object as owner
+        this.owner = SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
     /**

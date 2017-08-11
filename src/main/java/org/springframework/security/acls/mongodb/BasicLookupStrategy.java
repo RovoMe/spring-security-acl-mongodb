@@ -2,6 +2,7 @@ package org.springframework.security.acls.mongodb;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +25,7 @@ import org.springframework.security.acls.domain.PrincipalSid;
 import org.springframework.security.acls.jdbc.LookupStrategy;
 import org.springframework.security.acls.model.Acl;
 import org.springframework.security.acls.model.AclCache;
+import org.springframework.security.acls.model.MutableAcl;
 import org.springframework.security.acls.model.ObjectIdentity;
 import org.springframework.security.acls.model.Permission;
 import org.springframework.security.acls.model.PermissionGrantingStrategy;
@@ -172,7 +174,7 @@ public class BasicLookupStrategy implements LookupStrategy {
 
     Map<ObjectIdentity, Acl> resultMap = new HashMap<>();
 
-    for (MongoAcl foundAcl : foundAcls) {
+    for (MongoAcl foundAcl : new ArrayList<>(foundAcls)) {
       Acl acl = null;
       try {
         acl = convertToAcl(foundAcl, foundAcls, sids);
@@ -204,7 +206,16 @@ public class BasicLookupStrategy implements LookupStrategy {
         parentAcl = mongoTemplate.findById(mongoAcl.getParentId(), MongoAcl.class);
       }
       if (parentAcl != null) {
-        parent = convertToAcl(parentAcl, foundAcls, loadedSids);
+        if (!foundAcls.contains(parentAcl)) {
+          foundAcls.add(parentAcl);
+        }
+        Acl cachedParent = aclCache.getFromCache(new ObjectIdentityImpl(parentAcl.getClassName(), parentAcl.getInstanceId()));
+        if (null == cachedParent) {
+          parent = convertToAcl(parentAcl, foundAcls, loadedSids);
+          aclCache.putInCache((MutableAcl)parent);
+        } else {
+          parent = cachedParent;
+        }
       } else {
         // TODO: Log warning that no parent could be found
       }
