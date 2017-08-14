@@ -24,6 +24,7 @@ import org.springframework.security.acls.domain.ObjectIdentityImpl;
 import org.springframework.security.acls.domain.PermissionFactory;
 import org.springframework.security.acls.domain.PrincipalSid;
 import org.springframework.security.acls.jdbc.LookupStrategy;
+import org.springframework.security.acls.model.AccessControlEntry;
 import org.springframework.security.acls.model.Acl;
 import org.springframework.security.acls.model.AclCache;
 import org.springframework.security.acls.model.MutableAcl;
@@ -122,8 +123,10 @@ public class BasicLookupStrategy implements LookupStrategy {
         // (they should always, as our base impl doesn't filter on SID)
         if (acl != null) {
           if (acl.isSidLoaded(sids)) {
-            result.put(acl.getObjectIdentity(), acl);
-            aclFound = true;
+            if (definesAccessPermissionsForSids(acl, sids)) {
+              result.put(acl.getObjectIdentity(), acl);
+              aclFound = true;
+            }
           } else {
             throw new IllegalStateException("Error: SID-filtered element detected when implementation does not perform SID filtering "
                                             + "- have you added something to the cache manually?");
@@ -181,20 +184,33 @@ public class BasicLookupStrategy implements LookupStrategy {
     for (MongoAcl foundAcl : new ArrayList<>(foundAcls)) {
       Acl acl = null;
       try {
-        acl = convertToAcl(foundAcl, foundAcls, sids);
+        acl = convertToAcl(foundAcl, foundAcls);
       } catch (ClassNotFoundException cnfEx) {
         // TODO: add exception logging
       }
       if (null != acl) {
-
-        resultMap.put(acl.getObjectIdentity(), acl);
+        // check if the ACL does define access rules for any of the sids available in the given list
+        // owners and parent owners have full access on the ACE/domain object while other users have to be looked up
+        // within the permissions
+        if (definesAccessPermissionsForSids(acl, sids) ) {
+          resultMap.put(acl.getObjectIdentity(), acl);
+        }
       }
     }
 
     return resultMap;
   }
 
-  private Acl convertToAcl(MongoAcl mongoAcl, List<MongoAcl> foundAcls, List<Sid> loadedSids) throws ClassNotFoundException {
+  /**
+   * Converts the internal MongoDB representation to a Spring Security ACL instance.
+   *
+   * @param mongoAcl  The internal MongoDB based data model to convert to a Spring Security ACL one
+   * @param foundAcls A list of already fetched MongoDB based data model instances
+   * @return The converted Spring Security ACL instance filled with values taken from the MongoDB based data model
+   * @throws ClassNotFoundException If no class representation could be found for the domain object the ACL is referring
+   * to
+   */
+  private Acl convertToAcl(MongoAcl mongoAcl, List<MongoAcl> foundAcls) throws ClassNotFoundException {
     Acl parent = null;
     if (mongoAcl.getParentId() != null) {
       MongoAcl parentAcl = null;
@@ -215,7 +231,7 @@ public class BasicLookupStrategy implements LookupStrategy {
         }
         Acl cachedParent = aclCache.getFromCache(new ObjectIdentityImpl(parentAcl.getClassName(), parentAcl.getInstanceId()));
         if (null == cachedParent) {
-          parent = convertToAcl(parentAcl, foundAcls, loadedSids);
+          parent = convertToAcl(parentAcl, foundAcls);
           aclCache.putInCache((MutableAcl)parent);
         } else {
           parent = cachedParent;
@@ -257,6 +273,63 @@ public class BasicLookupStrategy implements LookupStrategy {
     aclCache.putInCache(acl);
 
     return acl;
+  }
+
+  /**
+   * Checks whether a fetched ACL specifies any of the {@link Sid Sids} passed in.
+   * <p>
+   * This implementation will first check if the owner of the domain object is contained in the list and if not check if
+   * any of the defined permissions are targeted at a security identity defined in the given list. In case a parent ACL
+   * is defined, this implementation will also try to determine whether the owner of an ancestor ACL is found in the
+   * given list or any of the permissions defined by an ancestor does contain identities available in the provided list.
+   *
+   * @param acl  The {@link Acl} instance to check whether it defines at least one of the identities provided
+   * @param sids A list of security identities the ACL should be checked against whether it defines at least one of
+   *             these
+   * @return <tt>true</tt> if the given ACL specifies at least one security identity available within the given list of
+   * identities. <tt>false</tt> if none of the passed in security identities could be found in either the provided ACL
+   * or any of its ancestor permissions
+   */
+  protected boolean definesAccessPermissionsForSids(Acl acl, List<Sid> sids) {
+    // check whether the list of sids is a match-all list or if the owner is found within the list
+    if (sids == null || sids.isEmpty() || sids.contains(acl.getOwner())) {
+      return true;
+    }
+    // check the contained permissions for permissions granted to a certain user available in the provided list of sids
+    if (hasPermissionsForSids(acl, sids)) {
+      return true;
+    }
+    // check if a parent reference is available and inheritance is enabled
+    if (acl.getParentAcl() != null && acl.isEntriesInheriting()) {
+      if (definesAccessPermissionsForSids(acl.getParentAcl(), sids)) {
+        return true;
+      }
+
+      if (hasPermissionsForSids(acl.getParentAcl(), sids)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Checks whether the provided ACL contains permissions issued for any of the given security identities.
+   *
+   * @param acl  The {@link Acl} instance to check whether it contains permissions issued for any of the provided
+   *             security identities
+   * @param sids A list of security identities the Acl instance should be checked against if it defines permissions for
+   *             any of the contained identities
+   * @return <tt>true</tt> if the ACL defines at least one permission for a security identity available within the given
+   * list of security identities. <tt>false</tt> if none of the permissions specified in the given Acl does define
+   * access rules for any identity available in the list of security entities passed in
+   */
+  protected boolean hasPermissionsForSids(Acl acl, List<Sid> sids) {
+    for (AccessControlEntry ace : acl.getEntries()) {
+      if (sids.contains(ace.getSid())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private List<AccessControlEntryImpl> readAces(AclImpl acl) {
