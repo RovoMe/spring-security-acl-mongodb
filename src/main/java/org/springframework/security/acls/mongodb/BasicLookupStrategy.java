@@ -18,6 +18,7 @@ import org.springframework.security.acls.domain.AuditLogger;
 import org.springframework.security.acls.domain.DefaultPermissionFactory;
 import org.springframework.security.acls.domain.DefaultPermissionGrantingStrategy;
 import org.springframework.security.acls.domain.DomainObjectPermission;
+import org.springframework.security.acls.domain.GrantedAuthoritySid;
 import org.springframework.security.acls.domain.MongoAcl;
 import org.springframework.security.acls.domain.ObjectIdentityImpl;
 import org.springframework.security.acls.domain.PermissionFactory;
@@ -43,6 +44,9 @@ import static org.springframework.data.mongodb.core.query.Query.query;
  * ACL documents from a MongoDB database and converting the results to proper Spring Security ACL instances. As with the
  * SQL based lookup strategy implementation, this implementation will make use of caching retrieved ACLs and providing
  * cached results on subsequent queries.
+ * <p>
+ * Note: Similar to the SQL based version of the basic lookup strategy, this implementation will ignore any list
+ * containing {@link Sid Sids} passed in as arguments in {@link #readAclsById(List, List)}.
  *
  * @author Roman Vottner
  */
@@ -221,15 +225,25 @@ public class BasicLookupStrategy implements LookupStrategy {
       }
     }
     ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(mongoAcl.getClassName()), mongoAcl.getInstanceId());
-    Sid owner = new PrincipalSid(mongoAcl.getOwner());
+    Sid owner;
+    if (mongoAcl.getOwner().isPrincipal()) {
+      owner = new PrincipalSid(mongoAcl.getOwner().getName());
+    } else {
+      owner = new GrantedAuthoritySid(mongoAcl.getOwner().getName());
+    }
     AclImpl acl = new AclImpl(objectIdentity, mongoAcl.getId(), aclAuthorizationStrategy, grantingStrategy, parent,
-                              loadedSids, mongoAcl.isInheritPermissions(), owner);
+                              null, mongoAcl.isInheritPermissions(), owner);
 
     for (DomainObjectPermission permission : mongoAcl.getPermissions()) {
-      Sid user = new PrincipalSid(permission.getSid());
+      Sid sid;
+      if (permission.getSid().isPrincipal()) {
+        sid = new PrincipalSid(permission.getSid().getName());
+      } else {
+        sid = new GrantedAuthoritySid(permission.getSid().getName());
+      }
       Permission permissions = permissionFactory.buildFromMask(permission.getPermission());
       AccessControlEntryImpl ace =
-              new AccessControlEntryImpl(permission.getId(), acl, user, permissions,
+              new AccessControlEntryImpl(permission.getId(), acl, sid, permissions,
                                          permission.isGranting(), permission.isAuditSuccess(), permission.isAuditFailure());
       // directly adding this permission entry to the Acl isn't possible as the returned list by acl.getEntries()
       // is a copy of the internal list and acl.insertAce(...) requires elevated security permissions

@@ -7,7 +7,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.security.acls.model.Acl;
 import org.springframework.security.core.context.SecurityContextHolder;
-import sun.plugin.liveconnect.SecurityContextHelper;
 
 /**
  * Represents an access control list configuration for a domain object specified by its unique identifier. An instance
@@ -15,6 +14,8 @@ import sun.plugin.liveconnect.SecurityContextHelper;
  * permissions from, as well as a list of user permissions for the referenced domain object.
  * <p>
  * This class is a mapping class for {@link Acl} instances which should be persisted to a MongoDB database.
+ *
+ * @author Roman Vottner
  */
 @Document(collection = "ACL")
 public class MongoAcl
@@ -27,7 +28,7 @@ public class MongoAcl
     /** A reference to the unique identifier of the domain object this ACL was created for **/
     private Serializable instanceId;
     /** The unique identifier of the user owning the domain object **/
-    private String owner;
+    private MongoSid owner;
     /** A reference to a parent ACL which may inherit permissions. Can be null **/
     private Serializable parentId = null;
     /**
@@ -44,7 +45,9 @@ public class MongoAcl
 
     /**
      * Creates a new access control list instance for a domain object identified by the given <em>instanceId</em> unique
-     * identifier. The class of the domain object is identified via the provided <em>className</em> argument.
+     * identifier. The class of the domain object is identified via the provided <em>className</em> argument. This
+     * constructor will set the currently authenticated user as the owner of the domain object identified by the passed
+     * <em>instanceId</em>.
      *
      * @param instanceId The unique identifier of the domain object a new access control list should be generated for
      * @param className  The fully qualified class name of the domain object
@@ -55,7 +58,9 @@ public class MongoAcl
         this.instanceId = instanceId;
         this.className = className;
         // assign the user who created the object as owner
-        this.owner = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        String ownerName = SecurityContextHolder.getContext().getAuthentication().getName();
+        this.owner = new MongoSid(ownerName);
     }
 
     /**
@@ -72,7 +77,7 @@ public class MongoAcl
      * @param entriesInheriting If set to true will include checking permissions from ancestor access control list
      *                          entries
      */
-    public MongoAcl(Serializable instanceId, String className, Serializable id, String owner,
+    public MongoAcl(Serializable instanceId, String className, Serializable id, MongoSid owner,
                     Serializable parentId, boolean entriesInheriting) {
         this(instanceId, className, id);
         this.parentId = parentId;
@@ -99,11 +104,11 @@ public class MongoAcl
     }
 
     /**
-     * Returns the owner name this ACL defines on the domain object.
+     * Returns the owner this ACL defines on the domain object.
      *
-     * @return The name of the owner of the domain object
+     * @return The owner of the domain object
      */
-    public String getOwner() {
+    public MongoSid getOwner() {
         return this.owner;
     }
 

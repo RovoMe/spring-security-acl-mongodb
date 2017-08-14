@@ -10,12 +10,18 @@ This Spring Security ACL customization uses MongoDB as a database to look up acc
     "_class" : "org.springframework.security.acls.domain.MongoAcl",
     "className" : "sample.contact.Contact",
     "instanceId" : 6,
-    "owner" : "rod",
+    "owner" : {
+        "name": "rod",
+        "isPrincipal": true
+    },
     "inheritPermissions" : true,
     "permissions" : [ 
         {
             "_id" : "dbf4dcb0-70f4-48a5-92b0-d4c782af7498",
-            "sid" : "dianne",
+            "sid" : {
+                "name": "dianne",
+                "isPrincipal": true
+            },
             "permission" : 1,
             "granting" : true,
             "auditFailure" : false,
@@ -23,7 +29,10 @@ This Spring Security ACL customization uses MongoDB as a database to look up acc
         }, 
         {
             "_id" : "a91b1f25-9c09-4092-a82b-9f773a777f1d",
-            "sid" : "dianne",
+            "sid" : {
+                "name": "dianne",
+                "isPrincipal": true
+            },
             "permission" : 2,
             "granting" : true,
             "auditFailure" : false,
@@ -31,7 +40,10 @@ This Spring Security ACL customization uses MongoDB as a database to look up acc
         }, 
         {
             "_id" : "36443e66-2917-4c0e-a04c-405205a9b8d8",
-            "sid" : "dianne",
+            "sid" : {
+                "name": "dianne",
+                "isPrincipal": true
+            },
             "permission" : 8,
             "granting" : true,
             "auditFailure" : false,
@@ -39,7 +51,10 @@ This Spring Security ACL customization uses MongoDB as a database to look up acc
         }, 
         {
             "_id" : "758e2530-8ef6-4974-bf2a-2bd54955805b",
-            "sid" : "scott",
+            "sid" : {
+                "name": "scott",
+                "isPrincipal": true
+            },
             "permission" : 1,
             "granting" : true,
             "auditFailure" : false,

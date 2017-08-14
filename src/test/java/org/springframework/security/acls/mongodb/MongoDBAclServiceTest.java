@@ -28,6 +28,7 @@ import org.springframework.security.acls.domain.ConsoleAuditLogger;
 import org.springframework.security.acls.domain.DefaultPermissionGrantingStrategy;
 import org.springframework.security.acls.domain.DomainObjectPermission;
 import org.springframework.security.acls.domain.MongoAcl;
+import org.springframework.security.acls.domain.MongoSid;
 import org.springframework.security.acls.domain.ObjectIdentityImpl;
 import org.springframework.security.acls.domain.PrincipalSid;
 import org.springframework.security.acls.domain.SpringCacheBasedAclCache;
@@ -121,9 +122,9 @@ public class MongoDBAclServiceTest {
         TestDomainObject unreladedDomainObject = new TestDomainObject();
 
         MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString());
-        MongoAcl child1 = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(), "Tim Test", parent.getId(), true);
-        MongoAcl child2 = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(), "Petty Pattern", parent.getId(), true);
-        MongoAcl child3 = new MongoAcl(otherDomainObject.getId(), otherDomainObject.getClass().getName(), UUID.randomUUID().toString(), "Sam Sample", parent.getId(), true);
+        MongoAcl child1 = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
+        MongoAcl child2 = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
+        MongoAcl child3 = new MongoAcl(otherDomainObject.getId(), otherDomainObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
         MongoAcl nonChild = new MongoAcl(unreladedDomainObject.getId(), unreladedDomainObject.getClass().getName(), UUID.randomUUID().toString());
 
         mongoTemplate.save(parent);
@@ -155,12 +156,12 @@ public class MongoDBAclServiceTest {
         TestDomainObject parentObject = new TestDomainObject();
         TestDomainObject domainObject = new TestDomainObject();
 
-        MongoAcl parentAcl = new MongoAcl(parentObject.getId(), parentObject.getClass().getName(), UUID.randomUUID().toString(), "Check Norris", null, true);
-        MongoAcl mongoAcl = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(), "Petty Pattern", parentAcl.getId(), true);
+        MongoAcl parentAcl = new MongoAcl(parentObject.getId(), parentObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Check Norris"), null, true);
+        MongoAcl mongoAcl = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parentAcl.getId(), true);
         List<DomainObjectPermission> permissions = new ArrayList<>();
-        permissions.add(new DomainObjectPermission(UUID.randomUUID().toString(), "Sam Sample",
+        permissions.add(new DomainObjectPermission(UUID.randomUUID().toString(), new MongoSid("Sam Sample"),
                                                    readWritePermissions, true, false, true));
-        permissions.add(new DomainObjectPermission(UUID.randomUUID().toString(), "Tim Test",
+        permissions.add(new DomainObjectPermission(UUID.randomUUID().toString(), new MongoSid("Tim Test"),
                                                    readWriteCreatePermissions, true, false, true));
         mongoAcl.setPermissions(permissions);
 
@@ -197,13 +198,13 @@ public class MongoDBAclServiceTest {
         ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
         MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString());
-        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), "Tim Test", parent.getId(), true);
-        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), "Petty Pattern", parent.getId(), true);
-        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), "Sam Sample", parent.getId(), true);
+        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
+        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
+        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
         MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
 
         DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       SecurityContextHolder.getContext().getAuthentication().getName(),
+                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
                                                                        BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
                                                                        true, true, true);
 
@@ -246,14 +247,14 @@ public class MongoDBAclServiceTest {
 
         ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
-        MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(),"owner", null, true);
-        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), "Tim Test", parent.getId(), true);
-        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), "Petty Pattern", parent.getId(), true);
-        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), "Sam Sample", parent.getId(), true);
+        MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(),new MongoSid("owner"), null, true);
+        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
+        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
+        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
         MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
 
         DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       SecurityContextHolder.getContext().getAuthentication().getName(),
+                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
                                                                        BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
                                                                        true, true, true);
 
@@ -283,19 +284,82 @@ public class MongoDBAclServiceTest {
         resultUser.values().removeIf(Objects::isNull);
         resultUser.keySet().forEach(objectIdentity1 -> {
             Acl acl = resultUser.get(objectIdentity1);
-            Set<AccessControlEntry> permissions = new LinkedHashSet<>();
-            Acl _parent = acl.getParentAcl();
-            if (acl.isEntriesInheriting()) {
-                while (null != _parent) {
-                    permissions.addAll(_parent.getEntries());
-                    if (_parent.isEntriesInheriting()) {
-                        _parent = _parent.getParentAcl();
-                    }
+            checkPermissions(acl);
+        });
+    }
+
+    @Test
+    @WithMockUser
+    public void issue3_testReadAclsByIdTwice() throws Exception {
+        // Arrange
+        TestDomainObject domainObject = new TestDomainObject();
+        TestDomainObject firstObject = new TestDomainObject();
+        TestDomainObject secondObject = new TestDomainObject();
+        TestDomainObject thirdObject = new TestDomainObject();
+        TestDomainObject unrelatedObject = new TestDomainObject();
+
+        ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
+
+        MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString(),new MongoSid("owner"), null, true);
+        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
+        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
+        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
+        MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
+
+        DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
+                                                                       new MongoSid("user-0"),
+                                                                       BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
+                                                                       true, true, true);
+
+        parent.getPermissions().add(permission);
+        child1.getPermissions().add(permission);
+        child2.getPermissions().add(permission);
+
+        // MongoAcl must has owner
+
+        aclRepository.save(parent);
+        aclRepository.save(child1);
+        aclRepository.save(child2);
+        aclRepository.save(child3);
+        aclRepository.save(nonChild);
+
+        // Act
+        List<Sid> sids = new LinkedList<>();
+        sids.add(new PrincipalSid("owner"));
+
+        List<Sid> sids1 = new LinkedList<>();
+        sids1.add(new PrincipalSid("user-0"));
+
+        List<ObjectIdentity> childObjects = aclService.findChildren(objectIdentity);
+
+        Map<ObjectIdentity, Acl> resultOwner = aclService.readAclsById(childObjects, sids1);
+        Map<ObjectIdentity, Acl> resultUser = aclService.readAclsById(childObjects, sids);
+
+        // Assert
+        assertThat(childObjects.size(), is(equalTo(3)));
+        assertThat(resultUser.keySet().size(), is(equalTo(3)));
+        resultUser.keySet().forEach(objectIdentity1 -> {
+            Acl acl = resultUser.get(objectIdentity1);
+            checkPermissions(acl);
+        });
+        assertThat(resultUser.keySet().size(), is(equalTo(3)));
+
+        assertThat(resultOwner, is(equalTo(resultUser)));
+    }
+
+    private void checkPermissions(Acl acl) {
+        Set<AccessControlEntry> permissions = new LinkedHashSet<>();
+        Acl _parent = acl.getParentAcl();
+        if (acl.isEntriesInheriting()) {
+            while (null != _parent) {
+                permissions.addAll(_parent.getEntries());
+                if (_parent.isEntriesInheriting()) {
+                    _parent = _parent.getParentAcl();
                 }
             }
+        }
 
-            assertThat("ACE " + acl + " did not contain or inherit the correct permissions",
-                       permissions.size(), is(equalTo(1)));
-        });
+        assertThat("ACE " + acl + " did not contain or inherit the correct permissions",
+                   permissions.size(), is(equalTo(1)));
     }
 }

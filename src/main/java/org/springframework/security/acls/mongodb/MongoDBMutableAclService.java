@@ -8,6 +8,7 @@ import org.springframework.security.acls.domain.AccessControlEntryImpl;
 import org.springframework.security.acls.domain.DomainObjectPermission;
 import org.springframework.security.acls.domain.GrantedAuthoritySid;
 import org.springframework.security.acls.domain.MongoAcl;
+import org.springframework.security.acls.domain.MongoSid;
 import org.springframework.security.acls.domain.PrincipalSid;
 import org.springframework.security.acls.jdbc.LookupStrategy;
 import org.springframework.security.acls.model.AccessControlEntry;
@@ -67,7 +68,7 @@ public class MongoDBMutableAclService extends MongoDBAclService implements Mutab
         MongoAcl mongoAcl = new MongoAcl(objectIdentity.getIdentifier(),
                                          objectIdentity.getType(),
                                          UUID.randomUUID().toString(),
-                                         sid.getPrincipal(),
+                                         new MongoSid(sid.getPrincipal()),
                                          null,
                                          true);
 
@@ -116,17 +117,17 @@ public class MongoDBMutableAclService extends MongoDBAclService implements Mutab
 
         for (AccessControlEntry _ace : acl.getEntries()) {
             AccessControlEntryImpl ace = (AccessControlEntryImpl)_ace;
-            String sid = null;
+            MongoSid sid = null;
             String aceId = (String)ace.getId();
             if (null == aceId) {
                 aceId = UUID.randomUUID().toString();
             }
             if (ace.getSid() instanceof PrincipalSid) {
                 PrincipalSid principal = (PrincipalSid)ace.getSid();
-                sid = principal.getPrincipal();
+                sid = new MongoSid(principal.getPrincipal(), true);
             } else if (ace.getSid() instanceof GrantedAuthoritySid) {
                 GrantedAuthoritySid grantedAuthority = (GrantedAuthoritySid)ace.getSid();
-                sid = grantedAuthority.getGrantedAuthority();
+                sid = new MongoSid(grantedAuthority.getGrantedAuthority(), false);
             }
             DomainObjectPermission permission =
                     new DomainObjectPermission(aceId, sid, ace.getPermission().getMask(),

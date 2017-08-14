@@ -17,8 +17,8 @@ public class DomainObjectPermission
 {
     /** The unique identifier of this permission instance **/
     private final Serializable id;
-    /** The unique identifier of the user this permission instance is created for **/
-    private final String sid;
+    /** The security identity the permission is created for **/
+    private final MongoSid sid;
     /** A bit-mask containing the relevant access permission for the user referenced by {@link #sid}. **/
     private int permission;
     /** Defines whether this permission is specifying granting permissions or denying permissions to a domain object. In
@@ -46,7 +46,7 @@ public class DomainObjectPermission
      * object or the ACL are stored within an instance of this class.
      *
      * @param id           The unique identifier of this permission entry
-     * @param sid          The unique identifier of the user this permission is created for
+     * @param sid          The security identity the permission is created for
      * @param permission   A bit-mask defining the actual permission the user identified by the given <em>sid</em>
      *                     argument has on a certain domain object
      * @param granting     Defines if permissions passed are for granting or denying purposes. If this argument is set
@@ -54,7 +54,7 @@ public class DomainObjectPermission
      * @param auditSuccess Defines if successful access attempts on the domain object by this user should be logged
      * @param auditFailure Defines if failed access attempts on the domain object by this user should be logged
      */
-    public DomainObjectPermission(Serializable id, String sid, int permission,
+    public DomainObjectPermission(Serializable id, MongoSid sid, int permission,
                                   boolean granting, boolean auditSuccess, boolean auditFailure) {
         Assert.notNull(sid, "Sid required");
         this.id = id;
@@ -84,11 +84,11 @@ public class DomainObjectPermission
     }
 
     /**
-     * Returns the name of the user this permission entry was created for.
+     * Returns the security identity this permission entry was created for.
      *
-     * @return The name of the user this permission is for
+     * @return The user this permission is for
      */
-    public String getSid() {
+    public MongoSid getSid() {
         return this.sid;
     }
 

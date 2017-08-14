@@ -23,6 +23,7 @@ import org.springframework.security.acls.domain.ConsoleAuditLogger;
 import org.springframework.security.acls.domain.DefaultPermissionGrantingStrategy;
 import org.springframework.security.acls.domain.DomainObjectPermission;
 import org.springframework.security.acls.domain.MongoAcl;
+import org.springframework.security.acls.domain.MongoSid;
 import org.springframework.security.acls.domain.ObjectIdentityImpl;
 import org.springframework.security.acls.domain.PrincipalSid;
 import org.springframework.security.acls.domain.SpringCacheBasedAclCache;
@@ -136,10 +137,10 @@ public class MongoDBMutableAclServiceTest {
         ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
         MongoAcl mongoAcl = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(),
-                                         UUID.randomUUID().toString(), SecurityContextHolder.getContext().getAuthentication().getName(),
+                                         UUID.randomUUID().toString(), new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
                                          null, true);
         DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       SecurityContextHolder.getContext().getAuthentication().getName(),
+                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
                                                                        BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
                                                                        true, true, true);
         mongoAcl.getPermissions().add(permission);
@@ -167,13 +168,13 @@ public class MongoDBMutableAclServiceTest {
         ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
         MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString());
-        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), "Tim Test", parent.getId(), true);
-        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), "Petty Pattern", parent.getId(), true);
-        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), "Sam Sample", parent.getId(), true);
+        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
+        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
+        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
         MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
 
         DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       SecurityContextHolder.getContext().getAuthentication().getName(),
+                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
                                                                        BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
                                                                        true, true, true);
 
@@ -211,13 +212,13 @@ public class MongoDBMutableAclServiceTest {
         ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
         MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString());
-        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), "Tim Test", parent.getId(), true);
-        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), "Petty Pattern", parent.getId(), true);
-        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), "Sam Sample", parent.getId(), true);
+        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
+        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
+        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
         MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
 
         DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       SecurityContextHolder.getContext().getAuthentication().getName(),
+                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
                                                                        BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
                                                                        true, true, true);
 
@@ -248,10 +249,10 @@ public class MongoDBMutableAclServiceTest {
         ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
         MongoAcl mongoAcl = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(),
-                                         UUID.randomUUID().toString(), SecurityContextHolder.getContext().getAuthentication().getName(),
+                                         UUID.randomUUID().toString(), new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
                                          null, true);
         DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       SecurityContextHolder.getContext().getAuthentication().getName(),
+                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
                                                                        BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
                                                                        true, true, true);
         mongoAcl.getPermissions().add(permission);
@@ -268,6 +269,7 @@ public class MongoDBMutableAclServiceTest {
         assertThat(updated.getPermissions().size(), is(equalTo(2)));
         assertThat(updated.getPermissions().get(0).getId(), is(equalTo(permission.getId())));
         assertThat(updated.getPermissions().get(1).getPermission(), is(equalTo(BasePermission.ADMINISTRATION.getMask())));
-        assertThat(updated.getPermissions().get(1).getSid(), is(equalTo("Sam Sample")));
+        assertThat(updated.getPermissions().get(1).getSid().getName(), is(equalTo("Sam Sample")));
+        assertThat(updated.getPermissions().get(1).getSid().isPrincipal(), is(equalTo(true)));
     }
 }
