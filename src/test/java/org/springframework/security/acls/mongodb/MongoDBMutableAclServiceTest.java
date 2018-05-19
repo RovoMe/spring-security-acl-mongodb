@@ -1,13 +1,25 @@
+/*
+ * Copyright 2002-2018 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.springframework.security.acls.mongodb;
 
 import com.mongodb.MongoClient;
-import java.net.UnknownHostException;
-import java.util.List;
-import java.util.UUID;
-import javax.annotation.Resource;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
@@ -30,7 +42,6 @@ import org.springframework.security.acls.domain.SpringCacheBasedAclCache;
 import org.springframework.security.acls.jdbc.LookupStrategy;
 import org.springframework.security.acls.model.Acl;
 import org.springframework.security.acls.model.AclCache;
-import org.springframework.security.acls.model.AclService;
 import org.springframework.security.acls.model.ChildrenExistException;
 import org.springframework.security.acls.model.MutableAcl;
 import org.springframework.security.acls.model.ObjectIdentity;
@@ -43,233 +54,239 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import java.net.UnknownHostException;
+import java.util.List;
+import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+/**
+ * @author Roman Vottner
+ * @since 4.3
+ */
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = { MongoDBMutableAclServiceTest.ContextConfig.class },
-        loader = AnnotationConfigContextLoader.class)
-@TestExecutionListeners(listeners = { MongoDBTestExecutionListener.class },
-        mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+@ContextConfiguration(classes = {MongoDBMutableAclServiceTest.ContextConfig.class},
+		loader = AnnotationConfigContextLoader.class)
+@TestExecutionListeners(listeners = {MongoDBTestExecutionListener.class},
+		mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class MongoDBMutableAclServiceTest {
 
-    @Configuration
-    @EnableMongoRepositories(basePackageClasses = {AclRepository.class })
-    public static class ContextConfig {
+	@Configuration
+	@EnableMongoRepositories(basePackageClasses = {AclRepository.class})
+	public static class ContextConfig {
 
-        @Bean
-        public MongoTemplate mongoTemplate() throws UnknownHostException
-        {
-            MongoClient mongoClient = new MongoClient("localhost", 27017);
-            return new MongoTemplate(mongoClient, "spring-security-acl-test");
-        }
+		@Autowired
+		private AclRepository aclRepository;
 
-        @Bean
-        public AclAuthorizationStrategy aclAuthorizationStrategy() {
-            return new AclAuthorizationStrategyImpl(new SimpleGrantedAuthority("ROLE_ADMINISTRATOR"));
-        }
+		@Bean
+		public MongoTemplate mongoTemplate() throws UnknownHostException {
+			MongoClient mongoClient = new MongoClient("localhost", 27017);
+			return new MongoTemplate(mongoClient, "spring-security-acl-test");
+		}
 
-        @Bean
-        public PermissionGrantingStrategy permissionGrantingStrategy() {
-            ConsoleAuditLogger consoleAuditLogger = new ConsoleAuditLogger();
-            return new DefaultPermissionGrantingStrategy(consoleAuditLogger);
-        }
+		@Bean
+		public AclAuthorizationStrategy aclAuthorizationStrategy() {
+			return new AclAuthorizationStrategyImpl(new SimpleGrantedAuthority("ROLE_ADMINISTRATOR"));
+		}
 
-        @Bean
-        public LookupStrategy lookupStrategy() throws UnknownHostException {
-            return new BasicLookupStrategy(mongoTemplate(), aclCache(), aclAuthorizationStrategy(), permissionGrantingStrategy());
-        }
+		@Bean
+		public PermissionGrantingStrategy permissionGrantingStrategy() {
+			ConsoleAuditLogger consoleAuditLogger = new ConsoleAuditLogger();
+			return new DefaultPermissionGrantingStrategy(consoleAuditLogger);
+		}
 
-        @Bean
-        public CacheManager cacheManager() {
-            return new ConcurrentMapCacheManager("test");
-        }
+		@Bean
+		public LookupStrategy lookupStrategy() throws UnknownHostException {
+			return new BasicLookupStrategy(mongoTemplate(), aclCache(), aclAuthorizationStrategy(), permissionGrantingStrategy());
+		}
 
-        @Bean
-        public AclCache aclCache() {
-            Cache springCache = cacheManager().getCache("test");
-            return new SpringCacheBasedAclCache(springCache, permissionGrantingStrategy(), aclAuthorizationStrategy());
-        }
+		@Bean
+		public CacheManager cacheManager() {
+			return new ConcurrentMapCacheManager("test");
+		}
 
-        @Bean
-        public AclService aclService() throws UnknownHostException {
-            return new MongoDBMutableAclService(lookupStrategy(), aclCache());
-        }
-    }
+		@Bean
+		public AclCache aclCache() {
+			Cache springCache = cacheManager().getCache("test");
+			return new SpringCacheBasedAclCache(springCache, permissionGrantingStrategy(), aclAuthorizationStrategy());
+		}
 
-    @Resource
-    private MongoDBMutableAclService aclService;
-    @Resource
-    private AclRepository aclRepository;
+		@Bean
+		public MongoDBMutableAclService aclService() throws UnknownHostException {
+			return new MongoDBMutableAclService(aclRepository, lookupStrategy(), aclCache());
+		}
+	}
 
-    @After
-    public void cleanup() {
-        aclRepository.delete(aclRepository.findAll());
-    }
+	@Autowired
+	private MongoDBMutableAclService aclService;
+	@Autowired
+	private AclRepository aclRepository;
 
-    @Test
-    @WithMockUser
-    public void testCreateAcl() throws Exception {
-        // Arrange
-        TestDomainObject domainObject = new TestDomainObject();
+	@After
+	public void cleanup() {
+		aclRepository.findAll().forEach((MongoAcl acl) -> aclRepository.delete(acl));
+	}
 
-        // Act
-        ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
-        Acl acl = aclService.createAcl(objectIdentity);
+	@Test
+	@WithMockUser
+	public void testCreateAcl() throws Exception {
+		// Arrange
+		TestDomainObject domainObject = new TestDomainObject();
 
-        // Assert
-        assertThat(acl, is(notNullValue()));
-        assertThat(acl.getObjectIdentity().getIdentifier(), is(equalTo(domainObject.getId())));
-        assertThat(acl.getObjectIdentity().getType(), is(equalTo(domainObject.getClass().getName())));
-        assertThat(acl.getOwner(), is(equalTo(new PrincipalSid(SecurityContextHolder.getContext().getAuthentication().getName()))));
-    }
+		// Act
+		ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
+		Acl acl = aclService.createAcl(objectIdentity);
 
-    @Test
-    @WithMockUser
-    public void testDeleteAcl() throws Exception {
-        // Arrange
-        TestDomainObject domainObject = new TestDomainObject();
-        ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
+		// Assert
+		assertThat(acl).isNotNull();
+		assertThat(acl.getObjectIdentity().getIdentifier()).isEqualTo(domainObject.getId());
+		assertThat(acl.getObjectIdentity().getType()).isEqualTo(domainObject.getClass().getName());
+		assertThat(acl.getOwner()).isEqualTo(new PrincipalSid(SecurityContextHolder.getContext().getAuthentication().getName()));
+	}
 
-        MongoAcl mongoAcl = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(),
-                                         UUID.randomUUID().toString(), new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
-                                         null, true);
-        DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
-                                                                       BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
-                                                                       true, true, true);
-        mongoAcl.getPermissions().add(permission);
+	@Test
+	@WithMockUser
+	public void testDeleteAcl() throws Exception {
+		// Arrange
+		TestDomainObject domainObject = new TestDomainObject();
+		ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
-        aclRepository.save(mongoAcl);
+		MongoAcl mongoAcl = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(),
+				UUID.randomUUID().toString(), new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
+				null, true);
+		DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
+				new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
+				BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
+				true, true, true);
+		mongoAcl.getPermissions().add(permission);
 
-        // Act
-        aclService.deleteAcl(objectIdentity, true);
+		aclRepository.save(mongoAcl);
 
-        // Assert
-        MongoAcl afterDelete = aclRepository.findById(mongoAcl.getId());
-        assertThat(afterDelete, is(nullValue()));
-    }
+		// Act
+		aclService.deleteAcl(objectIdentity, true);
 
-    @Test
-    @WithMockUser
-    public void testDeleteAcl_includingChildren() throws Exception {
-        // Arrange
-        TestDomainObject domainObject = new TestDomainObject();
-        TestDomainObject firstObject = new TestDomainObject();
-        TestDomainObject secondObject = new TestDomainObject();
-        TestDomainObject thirdObject = new TestDomainObject();
-        TestDomainObject unrelatedObject = new TestDomainObject();
+		// Assert
+		MongoAcl afterDelete = aclRepository.findById(mongoAcl.getId()).orElse(null);
+		assertThat(afterDelete).isNull();
+	}
 
-        ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
+	@Test
+	@WithMockUser
+	public void testDeleteAcl_includingChildren() throws Exception {
+		// Arrange
+		TestDomainObject domainObject = new TestDomainObject();
+		TestDomainObject firstObject = new TestDomainObject();
+		TestDomainObject secondObject = new TestDomainObject();
+		TestDomainObject thirdObject = new TestDomainObject();
+		TestDomainObject unrelatedObject = new TestDomainObject();
 
-        MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString());
-        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
-        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
-        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
-        MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
+		ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
-        DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
-                                                                       BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
-                                                                       true, true, true);
+		MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString());
+		MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
+		MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
+		MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
+		MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
 
-        parent.getPermissions().add(permission);
-        child1.getPermissions().add(permission);
-        child2.getPermissions().add(permission);
+		DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
+				new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
+				BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
+				true, true, true);
 
-        aclRepository.save(parent);
-        aclRepository.save(child1);
-        aclRepository.save(child2);
-        aclRepository.save(child3);
-        aclRepository.save(nonChild);
+		parent.getPermissions().add(permission);
+		child1.getPermissions().add(permission);
+		child2.getPermissions().add(permission);
 
-        // Act
-        aclService.deleteAcl(objectIdentity, true);
+		aclRepository.save(parent);
+		aclRepository.save(child1);
+		aclRepository.save(child2);
+		aclRepository.save(child3);
+		aclRepository.save(nonChild);
 
-        // Assert
-        MongoAcl afterDelete = aclRepository.findById(parent.getId());
-        assertThat(afterDelete, is(nullValue()));
-        List<MongoAcl> remaining = aclRepository.findAll();
-        assertThat(remaining.size(), is(equalTo(1)));
-        assertThat(remaining.get(0).getId(), is(equalTo(nonChild.getId())));
-    }
+		// Act
+		aclService.deleteAcl(objectIdentity, true);
 
-    @Test
-    @WithMockUser
-    public void testDeleteAcl_excludingChildren() throws Exception {
-        // Arrange
-        TestDomainObject domainObject = new TestDomainObject();
-        TestDomainObject firstObject = new TestDomainObject();
-        TestDomainObject secondObject = new TestDomainObject();
-        TestDomainObject thirdObject = new TestDomainObject();
-        TestDomainObject unrelatedObject = new TestDomainObject();
+		// Assert
+		MongoAcl afterDelete = aclRepository.findById(parent.getId()).orElse(null);
+		assertThat(afterDelete).isNull();
+		List<MongoAcl> remaining = aclRepository.findAll();
+		assertThat(remaining.size()).isEqualTo(1);
+		assertThat(remaining.get(0).getId()).isEqualTo(nonChild.getId());
+	}
 
-        ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
+	@Test
+	@WithMockUser
+	public void testDeleteAcl_excludingChildren() throws Exception {
+		// Arrange
+		TestDomainObject domainObject = new TestDomainObject();
+		TestDomainObject firstObject = new TestDomainObject();
+		TestDomainObject secondObject = new TestDomainObject();
+		TestDomainObject thirdObject = new TestDomainObject();
+		TestDomainObject unrelatedObject = new TestDomainObject();
 
-        MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString());
-        MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
-        MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
-        MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
-        MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
+		ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
-        DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
-                                                                       BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
-                                                                       true, true, true);
+		MongoAcl parent = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(), UUID.randomUUID().toString());
+		MongoAcl child1 = new MongoAcl(firstObject.getId(), firstObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Tim Test"), parent.getId(), true);
+		MongoAcl child2 = new MongoAcl(secondObject.getId(), secondObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Petty Pattern"), parent.getId(), true);
+		MongoAcl child3 = new MongoAcl(thirdObject.getId(), thirdObject.getClass().getName(), UUID.randomUUID().toString(), new MongoSid("Sam Sample"), parent.getId(), true);
+		MongoAcl nonChild = new MongoAcl(unrelatedObject.getId(), unrelatedObject.getClass().getName(), UUID.randomUUID().toString());
 
-        parent.getPermissions().add(permission);
-        child1.getPermissions().add(permission);
-        child2.getPermissions().add(permission);
+		DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
+				new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
+				BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
+				true, true, true);
 
-        aclRepository.save(parent);
-        aclRepository.save(child1);
-        aclRepository.save(child2);
-        aclRepository.save(child3);
-        aclRepository.save(nonChild);
+		parent.getPermissions().add(permission);
+		child1.getPermissions().add(permission);
+		child2.getPermissions().add(permission);
 
-        // Act
-        try {
-            aclService.deleteAcl(objectIdentity, false);
-            fail("Should have thrown an exception as removing a parent ACL is not allowed");
-        } catch (Exception ex) {
-            assertThat(ex, instanceOf(ChildrenExistException.class));
-        }
-    }
+		aclRepository.save(parent);
+		aclRepository.save(child1);
+		aclRepository.save(child2);
+		aclRepository.save(child3);
+		aclRepository.save(nonChild);
 
-    @Test
-    @WithMockUser
-    public void testUpdateAcl() throws Exception {
-        // Arrange
-        TestDomainObject domainObject = new TestDomainObject();
-        ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
+		// Act
+		try {
+			aclService.deleteAcl(objectIdentity, false);
+			fail("Should have thrown an exception as removing a parent ACL is not allowed");
+		} catch (Exception ex) {
+			assertThat(ex).isInstanceOf(ChildrenExistException.class);
+		}
+	}
 
-        MongoAcl mongoAcl = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(),
-                                         UUID.randomUUID().toString(), new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
-                                         null, true);
-        DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
-                                                                       new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
-                                                                       BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
-                                                                       true, true, true);
-        mongoAcl.getPermissions().add(permission);
-        aclRepository.save(mongoAcl);
+	@Test
+	@WithMockUser
+	public void testUpdateAcl() throws Exception {
+		// Arrange
+		TestDomainObject domainObject = new TestDomainObject();
+		ObjectIdentity objectIdentity = new ObjectIdentityImpl(Class.forName(domainObject.getClass().getName()), domainObject.getId());
 
-        MutableAcl updatedAcl = (MutableAcl)aclService.readAclById(objectIdentity);
-        updatedAcl.insertAce(updatedAcl.getEntries().size(), BasePermission.ADMINISTRATION, new PrincipalSid("Sam Sample"), true);
+		MongoAcl mongoAcl = new MongoAcl(domainObject.getId(), domainObject.getClass().getName(),
+				UUID.randomUUID().toString(), new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
+				null, true);
+		DomainObjectPermission permission = new DomainObjectPermission(UUID.randomUUID().toString(),
+				new MongoSid(SecurityContextHolder.getContext().getAuthentication().getName()),
+				BasePermission.READ.getMask() | BasePermission.WRITE.getMask(),
+				true, true, true);
+		mongoAcl.getPermissions().add(permission);
+		aclRepository.save(mongoAcl);
 
-        // Act
-        aclService.updateAcl(updatedAcl);
+		MutableAcl updatedAcl = (MutableAcl) aclService.readAclById(objectIdentity);
+		updatedAcl.insertAce(updatedAcl.getEntries().size(), BasePermission.ADMINISTRATION, new PrincipalSid("Sam Sample"), true);
 
-        // Assert
-        MongoAcl updated = aclRepository.findById(mongoAcl.getId());
-        assertThat(updated.getPermissions().size(), is(equalTo(2)));
-        assertThat(updated.getPermissions().get(0).getId(), is(equalTo(permission.getId())));
-        assertThat(updated.getPermissions().get(1).getPermission(), is(equalTo(BasePermission.ADMINISTRATION.getMask())));
-        assertThat(updated.getPermissions().get(1).getSid().getName(), is(equalTo("Sam Sample")));
-        assertThat(updated.getPermissions().get(1).getSid().isPrincipal(), is(equalTo(true)));
-    }
+		// Act
+		aclService.updateAcl(updatedAcl);
+
+		// Assert
+		MongoAcl updated = aclRepository.findById(mongoAcl.getId()).orElse(null);
+		assertThat(updated).isNotNull();
+		assertThat(updated.getPermissions().size()).isEqualTo(2);
+		assertThat(updated.getPermissions().get(0).getId()).isEqualTo(permission.getId());
+		assertThat(updated.getPermissions().get(1).getPermission()).isEqualTo(BasePermission.ADMINISTRATION.getMask());
+		assertThat(updated.getPermissions().get(1).getSid().getName()).isEqualTo("Sam Sample");
+		assertThat(updated.getPermissions().get(1).getSid().isPrincipal()).isTrue();
+	}
 }
