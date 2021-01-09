@@ -15,47 +15,24 @@
  */
 package org.springframework.security.acls.mongodb;
 
-import com.mongodb.MongoClient;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-import org.springframework.security.acls.dao.AclRepository;
-import org.springframework.security.acls.domain.AclAuthorizationStrategy;
-import org.springframework.security.acls.domain.AclAuthorizationStrategyImpl;
 import org.springframework.security.acls.domain.BasePermission;
-import org.springframework.security.acls.domain.ConsoleAuditLogger;
-import org.springframework.security.acls.domain.DefaultPermissionGrantingStrategy;
 import org.springframework.security.acls.domain.DomainObjectPermission;
 import org.springframework.security.acls.domain.MongoAcl;
 import org.springframework.security.acls.domain.MongoSid;
 import org.springframework.security.acls.domain.ObjectIdentityImpl;
 import org.springframework.security.acls.domain.PrincipalSid;
-import org.springframework.security.acls.domain.SpringCacheBasedAclCache;
-import org.springframework.security.acls.jdbc.LookupStrategy;
 import org.springframework.security.acls.model.AccessControlEntry;
 import org.springframework.security.acls.model.Acl;
-import org.springframework.security.acls.model.AclCache;
 import org.springframework.security.acls.model.AclService;
 import org.springframework.security.acls.model.NotFoundException;
 import org.springframework.security.acls.model.ObjectIdentity;
-import org.springframework.security.acls.model.PermissionGrantingStrategy;
 import org.springframework.security.acls.model.Sid;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestExecutionListeners;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.support.AnnotationConfigContextLoader;
 
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -75,68 +52,13 @@ import static org.assertj.core.api.Assertions.fail;
  * @author Roman Vottner
  * @since 4.3
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = {MongoDBAclServiceTest.ContextConfig.class},
-		loader = AnnotationConfigContextLoader.class)
-@TestExecutionListeners(listeners = {MongoDBTestExecutionListener.class},
-		mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-public class MongoDBAclServiceTest {
-
-	/**
-	 * Sample Spring configuration for using ACLs stored in a MongoDB
-	 */
-	@Configuration
-	@EnableMongoRepositories(basePackageClasses = {AclRepository.class})
-	public static class ContextConfig {
-
-		@Autowired
-		private AclRepository aclRepository;
-
-		@Bean
-		public MongoTemplate mongoTemplate() throws UnknownHostException {
-			MongoClient mongoClient = new MongoClient("localhost", 27017);
-			return new MongoTemplate(mongoClient, "spring-security-acl-test");
-		}
-
-		@Bean
-		public AclAuthorizationStrategy aclAuthorizationStrategy() {
-			return new AclAuthorizationStrategyImpl(new SimpleGrantedAuthority("ROLE_ADMINISTRATOR"));
-		}
-
-		@Bean
-		public PermissionGrantingStrategy permissionGrantingStrategy() {
-			ConsoleAuditLogger consoleAuditLogger = new ConsoleAuditLogger();
-			return new DefaultPermissionGrantingStrategy(consoleAuditLogger);
-		}
-
-		@Bean
-		public LookupStrategy lookupStrategy() throws UnknownHostException {
-			return new BasicLookupStrategy(mongoTemplate(), aclCache(), aclAuthorizationStrategy(), permissionGrantingStrategy());
-		}
-
-		@Bean
-		public CacheManager cacheManager() {
-			return new ConcurrentMapCacheManager("test");
-		}
-
-		@Bean
-		public AclCache aclCache() {
-			Cache springCache = cacheManager().getCache("test");
-			return new SpringCacheBasedAclCache(springCache, permissionGrantingStrategy(), aclAuthorizationStrategy());
-		}
-
-		@Bean
-		public AclService aclService() throws UnknownHostException {
-			return new MongoDBAclService(aclRepository, lookupStrategy());
-		}
-	}
+public class MongoDBAclServiceSetupTest extends SetupTestMongoDBAcl {
 
 	@Autowired
 	private AclService aclService;
+
 	@Autowired
 	private MongoTemplate mongoTemplate;
-	@Autowired
-	private AclRepository aclRepository;
 
 	/**
 	 * Tests the retrieval of child domain objects by providing a representation of the parent domain object holder.
