@@ -21,9 +21,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.security.acls.domain.AccessControlEntryImpl;
 import org.springframework.security.acls.domain.AclAuthorizationStrategy;
 import org.springframework.security.acls.domain.AclImpl;
-import org.springframework.security.acls.domain.AuditLogger;
 import org.springframework.security.acls.domain.DefaultPermissionFactory;
-import org.springframework.security.acls.domain.DefaultPermissionGrantingStrategy;
 import org.springframework.security.acls.domain.DomainObjectPermission;
 import org.springframework.security.acls.domain.GrantedAuthoritySid;
 import org.springframework.security.acls.domain.MongoAcl;
@@ -72,21 +70,21 @@ public class BasicLookupStrategy implements LookupStrategy {
 	/**
 	 * Spring template for interacting with a MongoDB database
 	 **/
-	private MongoTemplate mongoTemplate;
+	private final MongoTemplate mongoTemplate;
 	/**
 	 * Used to avoid further database lookups for already retrieved Acl instances
 	 **/
-	private AclCache aclCache;
+	private final AclCache aclCache;
 	/**
 	 * A Spring Security authorization strategy passed to the generated Acl implementation once the data are loaded from
 	 * the database. This strategy checks whether existing permission entries for users may be removed or new ones added.
 	 */
-	private AclAuthorizationStrategy aclAuthorizationStrategy;
+	private final AclAuthorizationStrategy aclAuthorizationStrategy;
 	/**
 	 * This strategy implementation will be injected into the generated Spring Security Acl class after retrieving the
 	 * data from the database
 	 **/
-	private PermissionGrantingStrategy grantingStrategy;
+	private final PermissionGrantingStrategy grantingStrategy;
 	/**
 	 * Used to convert the int value containing the permission value back to a permission object used by Spring security
 	 **/
@@ -95,7 +93,7 @@ public class BasicLookupStrategy implements LookupStrategy {
 	/**
 	 * The number of ACLs retrieved at maximum in one go
 	 **/
-	private int batchSize = 50;
+	private final int batchSize = 50;
 
 	/**
 	 * Used to add respective user permissions on a domain object to an ACL instance as the setter requires elevated
@@ -103,12 +101,6 @@ public class BasicLookupStrategy implements LookupStrategy {
 	 * way
 	 **/
 	private final Field fieldAces = FieldUtils.getField(AclImpl.class, "aces");
-
-	public BasicLookupStrategy(MongoTemplate mongoTemplate, AclCache aclCache,
-							   AclAuthorizationStrategy aclAuthorizationStrategy,
-							   AuditLogger auditLogger) {
-		this(mongoTemplate, aclCache, aclAuthorizationStrategy, new DefaultPermissionGrantingStrategy(auditLogger));
-	}
 
 	public BasicLookupStrategy(MongoTemplate mongoTemplate, AclCache aclCache,
 							   AclAuthorizationStrategy aclAuthorizationStrategy,
@@ -165,7 +157,7 @@ public class BasicLookupStrategy implements LookupStrategy {
 
 			// Is it time to load from Mongo the currentBatchToLoad?
 			if ((currentBatchToLoad.size() == this.batchSize) || ((i + 1) == objects.size())) {
-				if (currentBatchToLoad.size() > 0) {
+				if (!currentBatchToLoad.isEmpty()) {
 					Map<ObjectIdentity, Acl> loadedBatch = lookupObjectIdentities(currentBatchToLoad, sids);
 
 					// Add loaded batch (all elements 100% initialized) to results
@@ -200,7 +192,10 @@ public class BasicLookupStrategy implements LookupStrategy {
 			types.add(domainObject.getType());
 		}
 		Criteria where = Criteria.where("instanceId").in(objectIds).and("className").in(types);
-		List<MongoAcl> foundAcls = mongoTemplate.find(query(where).with(new Sort(Sort.Direction.ASC, "instanceId", "permissions.position")), MongoAcl.class);
+		List<MongoAcl> foundAcls = mongoTemplate.find(
+				query(where)
+				.with(Sort.by("instanceId", "permissions.position").ascending()),
+				MongoAcl.class);
 
 		Map<ObjectIdentity, Acl> resultMap = new HashMap<>();
 
@@ -211,13 +206,11 @@ public class BasicLookupStrategy implements LookupStrategy {
 			} catch (ClassNotFoundException cnfEx) {
 				// TODO: add exception logging
 			}
-			if (null != acl) {
+			if (null != acl && definesAccessPermissionsForSids(acl, sids)) {
 				// check if the ACL does define access rules for any of the sids available in the given list
 				// owners and parent owners have full access on the ACE/domain object while other users have to be looked up
 				// within the permissions
-				if (definesAccessPermissionsForSids(acl, sids)) {
-					resultMap.put(acl.getObjectIdentity(), acl);
-				}
+				resultMap.put(acl.getObjectIdentity(), acl);
 			}
 		}
 
